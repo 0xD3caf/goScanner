@@ -5,28 +5,46 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 //Basic port scanner built in Go
+// takes flags to indicate information
+// FLAGS
+// -IP (sets the IP address to scan)
+// -port (gives port or port range, format xxx-xxx)
+// -proto (Sets either TCP or UDP for proto, default tcp
+// -timeout (sets the amount of time to wait for connections in seconds)
 
 //!TODO
-//change to CLI form
-//allow multiple port scanning
 //UDP vs TCP switch
 //dump to file option
 //add flags for scan types, ie. SYN, ACK, FIN, PSH, URG, RST
 //add timeout for scanner
+//add display only open
 
 func main() {
 	//starting up and getting IP and port from user
 	IPPtr := flag.String("IP", "Localhost", "IP Selection")
-	portPtr := flag.Int("port", 0, "Port or port range to scan")
+	portPtr := flag.String("port", "0", "Port or port range to scan")
 	protoPtr := flag.String("proto", "tcp", "Select either UDP or TCP scanning")
 	timeoutPtr := flag.String("timeout", "10", "Set amount of time before timing out connection")
 	flag.Parse()
 	timeout := *timeoutPtr + "s"
+	var port int
+	FinalPortList := make([]int, 0)
+	if strings.Contains(*portPtr, "-") {
+		portsList := strings.Split(*portPtr, "-")
+		maxval, _ := strconv.Atoi(portsList[1])
+		for minval, _ := strconv.Atoi(portsList[0]); minval <= maxval; minval++ {
+			FinalPortList = append(FinalPortList, minval)
+		}
+	} else {
+		port, _ = strconv.Atoi(*portPtr)
+		FinalPortList[0] = port
+	}
 	/*
 		fmt.Printf("IP is: %s\n", *IPPtr)
 		fmt.Printf("Port is: %d\n", *portPtr)
@@ -39,22 +57,28 @@ func main() {
 		fmt.Println("This IP is not Valid, Please try again")
 		os.Exit(3)
 	}
-	if !isValidPort(*portPtr) {
-		fmt.Println("This port is not valid, Please try again")
-		os.Exit(3)
+	//needs check for evrey object in range
+	for i := 0; i < len(FinalPortList); i++ {
+		if !isValidPort(FinalPortList[i]) {
+			fmt.Println("This port is not valid, Please try again")
+			os.Exit(3)
+		}
 	}
 	fmt.Println("---------------------------------------------------------")
 
 	//Begin scanning process here
-
-	results := Scanner(*IPPtr, *portPtr, proto, timeoutDuration)
-	var status string
-	if results {
-		status = "Open"
-	} else {
-		status = "Closed"
+	//change to for loop
+	for i := 0; i < len(FinalPortList); i++ {
+		var status string
+		currPort := FinalPortList[i]
+		results := Scanner(*IPPtr, currPort, proto, timeoutDuration)
+		if results {
+			status = "Open"
+		} else {
+			status = "Closed"
+		}
+		fmt.Println("Port:", currPort, " is : ", status)
 	}
-	fmt.Println("Port:", *portPtr, " is : ", status)
 }
 
 func isValidIP(IP net.IP) bool {
@@ -74,15 +98,8 @@ func isValidPort(port int) bool {
 }
 
 func Scanner(IP string, port int, proto string, timeout time.Duration) bool {
-	fmt.Println("--Port Scanner started--")
 	addr := fmt.Sprintf(IP+":%d", port)
 	conn, err := net.DialTimeout(proto, addr, timeout)
-	/*
-		fmt.Println("Testing Conn")
-		fmt.Println(conn)
-		fmt.Println("Testing err")
-		fmt.Println(err)
-	*/
 	if err != nil {
 		return false
 	}
