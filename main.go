@@ -1,10 +1,11 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
-	"strconv"
+	"strings"
 	"time"
 )
 
@@ -18,30 +19,27 @@ import (
 //add flags for scan types, ie. SYN, ACK, FIN, PSH, URG, RST
 //add timeout for scanner
 
-func init() {
-	fmt.Println("--Initializing main.go--")
-}
-
 func main() {
 	//starting up and getting IP and port from user
-	fmt.Println("Basic port scanner in Go")
-	fmt.Println("")
-	fmt.Print("Enter IP to Scan: ")
-	var IPstr string
-	var portStr string
-	proto := "tcp"
-	timeout := "10" + "s"
+	IPPtr := flag.String("IP", "Localhost", "IP Selection")
+	portPtr := flag.Int("port", 0, "Port or port range to scan")
+	protoPtr := flag.String("proto", "tcp", "Select either UDP or TCP scanning")
+	timeoutPtr := flag.String("timeout", "10", "Set amount of time before timing out connection")
+	flag.Parse()
+	timeout := *timeoutPtr + "s"
+	/*
+		fmt.Printf("IP is: %s\n", *IPPtr)
+		fmt.Printf("Port is: %d\n", *portPtr)
+		fmt.Printf("Proto is: %s\n", *protoPtr)
+		fmt.Printf("Timeout is: %s\n", timeout)
+	*/
+	proto := strings.ToLower(*protoPtr)
 	timeoutDuration, _ := time.ParseDuration(timeout)
-	fmt.Scanln(&IPstr)
-	userIP := net.ParseIP(IPstr)
-	if !isValidIP(userIP) {
+	if !isValidIP(net.ParseIP(*IPPtr)) {
 		fmt.Println("This IP is not Valid, Please try again")
 		os.Exit(3)
 	}
-	fmt.Print("Please enter the port: ")
-	fmt.Scanln(&portStr)
-	userPort, _ := strconv.Atoi(portStr)
-	if !isValidPort(userPort) {
+	if !isValidPort(*portPtr) {
 		fmt.Println("This port is not valid, Please try again")
 		os.Exit(3)
 	}
@@ -49,14 +47,14 @@ func main() {
 
 	//Begin scanning process here
 
-	results := Scanner(IPstr, userPort, proto, timeoutDuration)
+	results := Scanner(*IPPtr, *portPtr, proto, timeoutDuration)
 	var status string
 	if results {
 		status = "Open"
 	} else {
 		status = "Closed"
 	}
-	fmt.Println("Port:", userPort, " is : ", status)
+	fmt.Println("Port:", *portPtr, " is : ", status)
 }
 
 func isValidIP(IP net.IP) bool {
