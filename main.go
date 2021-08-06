@@ -17,13 +17,13 @@ import (
 // -port (gives port or port range, format xxx-xxx)
 // -proto (Sets either TCP or UDP for proto, default tcp
 // -timeout (sets the amount of time to wait for connections in seconds)
+// -display (sets whether to display closed ports, takes bool, default false/off)
 
 //!TODO
-//UDP vs TCP switch
 //dump to file option
 //add flags for scan types, ie. SYN, ACK, FIN, PSH, URG, RST
-//add timeout for scanner
-//add display only open
+//ad real UDP scanning
+// -outfile (optional dump to file)
 
 func main() {
 	//starting up and getting IP and port from user
@@ -31,6 +31,8 @@ func main() {
 	portPtr := flag.String("port", "0", "Port or port range to scan")
 	protoPtr := flag.String("proto", "tcp", "Select either UDP or TCP scanning")
 	timeoutPtr := flag.String("timeout", "10", "Set amount of time before timing out connection")
+	displayPtr := flag.Bool("display", false, "Sets whether to display closed ports")
+
 	flag.Parse()
 	timeout := *timeoutPtr + "s"
 	var port int
@@ -43,7 +45,7 @@ func main() {
 		}
 	} else {
 		port, _ = strconv.Atoi(*portPtr)
-		FinalPortList[0] = port
+		FinalPortList = append(FinalPortList, port)
 	}
 	/*
 		fmt.Printf("IP is: %s\n", *IPPtr)
@@ -57,7 +59,7 @@ func main() {
 		fmt.Println("This IP is not Valid, Please try again")
 		os.Exit(3)
 	}
-	//needs check for evrey object in range
+	//needs check for every object in range
 	for i := 0; i < len(FinalPortList); i++ {
 		if !isValidPort(FinalPortList[i]) {
 			fmt.Println("This port is not valid, Please try again")
@@ -67,7 +69,6 @@ func main() {
 	fmt.Println("---------------------------------------------------------")
 
 	//Begin scanning process here
-	//change to for loop
 	for i := 0; i < len(FinalPortList); i++ {
 		var status string
 		currPort := FinalPortList[i]
@@ -77,7 +78,9 @@ func main() {
 		} else {
 			status = "Closed"
 		}
-		fmt.Println("Port:", currPort, " is : ", status)
+		if *displayPtr || results {
+			fmt.Println("Port:", currPort, " : ", status)
+		}
 	}
 }
 
