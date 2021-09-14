@@ -3,11 +3,14 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/icmp"
 )
 
 //Basic port scanner built in Go
@@ -19,7 +22,7 @@ import (
 // -timeout (sets the amount of time to wait for connections in seconds)
 // -display (sets whether to display closed ports, default off, flag/ does not need input)
 
-// scanner.go -ip <Target_IP> -port <port | Min-Max> -proto {tcp | udp} -timeout {Seconds} -display (shows_closed_ports)
+// scanner.go -ip <Target_IP> -port <port | Min-Max> -proto {tcp | udp} -timeout {seconds} -display
 
 //!TODO
 //dump to file option
@@ -38,8 +41,11 @@ func main() {
 	displayPtr := flag.Bool("display", false, "Sets whether to display closed ports")
 
 	flag.Parse()
-	timeout := *timeoutPtr + "s" //add time value to timeout so it can be interpreted
+	timeout, _ := strconv.Atoi(*timeoutPtr)
+	local_addr := "10.13.37.5:0"
+	curr_addr := "10.13.37.5"
 	var port int
+
 	FinalPortList := make([]int, 0)
 	if strings.Contains(*portPtr, "-") {
 		portsList := strings.Split(*portPtr, "-") //if a - was present, split to get min+max
@@ -57,9 +63,8 @@ func main() {
 		fmt.Printf("Proto is: %s\n", *protoPtr)
 		fmt.Printf("Timeout is: %s\n", timeout)
 	*/
-	proto := strings.ToLower(*protoPtr)               //convert to lower case to match conn input
-	timeoutDuration, _ := time.ParseDuration(timeout) //convert time string to time object
-	if !isValidIP(net.ParseIP(*IPPtr)) {              //check if IP is valud
+	proto := strings.ToLower(*protoPtr)  //convert to lower case to match conn input
+	if !isValidIP(net.ParseIP(*IPPtr)) { //check if IP is valud
 		fmt.Println("This IP is not Valid, Please try again")
 		os.Exit(3)
 	}
@@ -74,16 +79,65 @@ func main() {
 
 	//Begin scanning process here
 	for i := 0; i < len(FinalPortList); i++ { //loops though all ports in port list
-		var status string
+		var results bool = true
+		var status string = "open"
 		currPort := FinalPortList[i]
-		results := Scanner(*IPPtr, currPort, proto, timeoutDuration) //calls scanner to check port
-		if results {
-			status = "Open"
-		} else {
-			status = "Closed"
-		}
-		if *displayPtr || results { //bool logic so we only print closed ports if display flag was set.
-			fmt.Println("Port:", currPort, " : ", status)
+		var ip_string string = *IPPtr + ":" + strconv.Itoa(currPort)
+		if proto == "tcp" {
+			laddr, _ := net.ResolveTCPAddr("tcp4", local_addr)
+			tcpAddr, _ := net.ResolveTCPAddr("tcp4", ip_string)
+			conn, err := net.DialTCP("tcp", laddr, tcpAddr)
+			_ = conn
+			if err != nil {
+				results = false
+				status = "closed"
+			} else {
+				conn.Close()
+			}
+			if *displayPtr || results { //bool logic so we only print closed ports if display flag was set.
+				fmt.Println("Port:", currPort, " : ", status)
+			}
+		} else if proto == "udp" {
+			//!TODO
+			//Add code to collect and interpret ICMP response to UDP packet
+			//send several times, add flag for number of repeats
+
+			//set up icmp listener
+			icmp_conn, icmp_err := icmp.ListenPacket("ip4:icmp", curr_addr)
+			if icmp_err != nil {
+				fmt.Println("Houston, we have an error")
+			}
+			_ = curr_addr
+			//start UDP setup
+			udpAddr, _ := net.ResolveUDPAddr("udp4", ip_string)
+			laddr, _ := net.ResolveUDPAddr("udp4", local_addr)
+			conn, _ := net.DialUDP("udp", laddr, udpAddr)
+			var msg []byte
+
+			deadline := time.Now().Add(time.Duration(timeout)) //computes timeout time and sets on conn
+			conn.SetDeadline(deadline)
+			buffer := []byte("Hello")
+			_, _ = conn.Write(buffer) //send buffered data
+
+			//listen for ICMP response
+			length, srcIP, icmp_err := icmp_conn.ReadFrom(msg)
+			if icmp_err != nil {
+				log.Println(icmp_err)
+				continue
+			}
+			if length == 0 {
+				fmt.Println("No Response")
+			} else {
+				test := srcIP.String()
+				if test == *IPPtr {
+					fmt.Println("We got a packet")
+					fmt.Println(string(msg))
+				}
+
+			}
+
+			conn.Close()
+			icmp_conn.Close()
 		}
 	}
 }
