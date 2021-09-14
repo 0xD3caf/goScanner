@@ -32,6 +32,8 @@ import (
 // -outfile (optional dump to file)
 //-help (helpfile)
 
+//Update UDP scanning, again. Might try libpcap to collect ICMP response
+//first step is to capture controlled pings
 func main() {
 	//starting up and getting flag values
 	IPPtr := flag.String("ip", "Localhost", "IP Selection")
@@ -103,21 +105,23 @@ func main() {
 			//send several times, add flag for number of repeats
 
 			//set up icmp listener
-			icmp_conn, icmp_err := icmp.ListenPacket("ip4:icmp", curr_addr)
+			_ = curr_addr
+			icmp_conn, icmp_err := icmp.ListenPacket("ip4:icmp", "127.0.0.1")
 			if icmp_err != nil {
 				fmt.Println("Houston, we have an error")
 			}
-			_ = curr_addr
+			var msg []byte
+
 			//start UDP setup
 			udpAddr, _ := net.ResolveUDPAddr("udp4", ip_string)
 			laddr, _ := net.ResolveUDPAddr("udp4", local_addr)
 			conn, _ := net.DialUDP("udp", laddr, udpAddr)
-			var msg []byte
 
 			deadline := time.Now().Add(time.Duration(timeout)) //computes timeout time and sets on conn
 			conn.SetDeadline(deadline)
 			buffer := []byte("Hello")
-			_, _ = conn.Write(buffer) //send buffered data
+			_, err := conn.Write(buffer) //send buffered data
+			fmt.Println(err)
 
 			//listen for ICMP response
 			length, srcIP, icmp_err := icmp_conn.ReadFrom(msg)
@@ -125,8 +129,8 @@ func main() {
 				log.Println(icmp_err)
 				continue
 			}
-			if length == 0 {
-				fmt.Println("No Response")
+			if length == 0 && srcIP == nil {
+				fmt.Println("Open|Filtered")
 			} else {
 				test := srcIP.String()
 				if test == *IPPtr {
@@ -144,10 +148,7 @@ func main() {
 
 func isValidIP(IP net.IP) bool {
 	//IP Check function, returns false is not valid IP
-	if IP.To4() != nil {
-		return true
-	}
-	return false
+	return IP.To4() != nil
 }
 
 func isValidPort(port int) bool {
