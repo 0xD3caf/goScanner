@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/pcap"
 	"golang.org/x/net/icmp"
 )
 
@@ -36,6 +38,17 @@ import (
 //first step is to capture controlled pings
 func main() {
 	//starting up and getting flag values
+
+	if handle, err := pcap.OpenLive("wlan", 1600, true, pcap.BlockForever); err != nil {
+		panic(err)
+	} else if err := handle.SetBPFFilter("tcp and port 80"); err != nil { // optional
+		panic(err)
+	} else {
+		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+		for packet := range packetSource.Packets() {
+			fmt.Println(packet.String())
+		}
+	}
 	IPPtr := flag.String("ip", "Localhost", "IP Selection")
 	portPtr := flag.String("port", "0", "Port or port range to scan")
 	protoPtr := flag.String("proto", "tcp", "Select either UDP or TCP scanning")
