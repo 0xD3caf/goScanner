@@ -1,1 +1,17 @@
+Basic port scanner in GO
+
+//Basic port scanner built in Go
+// takes flags to indicate information
+// FLAGS
+// -ip (sets the IP address to scan)
+// -port (gives port or port range, format xxx-xxx)
+// -proto (Sets either TCP or UDP for proto, default tcp
+// -timeout (sets the amount of time to wait for connections in seconds)
+// -display (sets whether to display closed ports, default off, flag/ does not need input)
+// -retry (sets number of attempts per port for UDP scanning)
+
+// main.go -ip <Target_IP> -port <port | Min-Max> -proto {tcp | udp} -timeout {seconds} -display
+
 UDP scanning must be run from Linux device
+
+UDP Scanning requires root privileges
